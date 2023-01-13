@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Petite-vue-go</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Lato&display=swap");
+      @import url("https://fonts.googleapis.com/css2?family=Poppins&display=swap");
+
+      body {
+        margin: 0;
+        font-family: "Lato", sans-serif;
+      }
+
+      input {
+        padding: 10px 8px;
+        margin: 6px 0;
+        border-radius: 6px;
+      }
+
+      button {
+        padding: 10px 8px;
+        background-color: #333;
+        color: #fff;
+        font-weight: bolder;
+        border-radius: 6px;
+        border: none;
+      }
+
+      .poppins {
+        font-family: "Poppins", sans-serif;
+      }
+
+      .header {
+        background-color: #333;
+        color: #fff;
+        padding: 20px 40px;
+        font-size: 26px;
+        font-weight: bolder;
+      }
+
+      .content {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: calc(100vh - 100px);
+      }
+
+      .form {
+        display: flex;
+        flex-direction: column;
+      }
+    </style>
+  </head>
+  <body>
+    <main v-scope @vue:mounted="mounted" @vue:unmounted="unmounted">
+      <div class="poppins header">Petite vue Go</div>
+
+      <div class="content">
+        <form v-if="showForm" class="form">
+          <input
+            type="text"
+            v-model="path"
+            placeholder="An existing folder path in your computer"
+          />
+          <button @click.prevent="submit">SEND</button>
+        </form>
+
+        <div v-if="!showForm">
+          <p class="poppins">Files in folder: {{ path }}</p>
+          <p v-if="loading">Loading data...</p>
+
+          <pre>
+              {{ output }}
+          </pre>
+        </div>
+      </div>
+    </main>
+
+    <script type="module">
+      import { createApp } from "https://unpkg.com/petite-vue@0.4.1/dist/petite-vue.es.js";
+
+      createApp({
+        showForm: true,
+        loading: false,
+        path: "",
+        output: "",
+        ws: null,
+
+        // methods
+        mounted() {
+          this.ws = new WebSocket("ws://localhost:8080/ws");
+
+          this.ws.onopen = () => {
+            console.log("WS connected!");
+          };
+
+          this.ws.onmessage = (e) => {
+            this.output = e.data;
+            this.loading = false;
+          };
+
+          this.ws.onerror = (e) => {
+            console.error({ e });
+          };
+
+          this.ws.onclose = (e) => {
+            console.info("WS closed ", { e });
+          };
+        },
+
+        unmounted() {
+          this.ws.close();
+        },
+
+        submit() {
+          if (!this.path) {
+            return;
+          }
+
+          this.loading = true;
+
+          fetch("/list", {
+            method: "POST",
+            body: JSON.stringify({
+              path: this.path,
+            }),
+          })
+            .then((response) => response.json())
+            .then(({ path }) => {
+              this.showForm = false;
+              this.path = path;
+            })
+            .catch(console.error);
+        },
+      }).mount();
+    </script>
+  </body>
+</html>
